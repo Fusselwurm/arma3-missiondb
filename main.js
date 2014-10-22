@@ -64,7 +64,7 @@ function getMissions(req, res, next) {
     next();
 }
 
-function getMission(req, res, next) {
+function getMissionRaw(req, res, next) {
     var digest = req.params.digest;
     if (!missions[digest]) {
         res.send(404);
@@ -76,6 +76,11 @@ function getMission(req, res, next) {
     next();
 }
 
+function getMission() {}
+
+function getMissionDescriptionExt() {}
+
+
 var server = restify.createServer();
 server.use(restify.bodyParser());
 server.get('/hello/:name', respondHelllo);
@@ -84,6 +89,8 @@ server.head('/hello/:name', respondHelllo);
 server.post('/register', registerUrl);
 server.get('/missions/', getMissions);
 server.get('/mission/:digest', getMission);
+server.get('/mission/:digest/raw', getMissionRaw);
+server.get('/mission/:digest/description.ext', getMissionDescriptionExt);
 
 server.get('/resources/:filename', function (req, res, next) {
     var contents = '';

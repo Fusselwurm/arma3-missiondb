@@ -11,8 +11,8 @@ frisby.
     afterJSON(function(response) {
         sleep.sleep(1);
         frisby.
-            create('check registered Mission for existance').
-            get(response.location).
+            create('get raw data of registered Mission').
+            get(response.location + '/raw').
             expectStatus(200).
             toss();
 
