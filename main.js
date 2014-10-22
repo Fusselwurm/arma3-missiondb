@@ -5,6 +5,7 @@ var restify = require('restify'),
     crypto = require('crypto'),
     missionFetcher = require('./lib/mission-fetcher.js'),
     resourceFetcher = require('./lib/get-resource.js'),
+    pbo = require('./lib/pbo.js'),
     baseUrl = 'http://localhost:8080',
     missions = {},
     errorUrls = {};
@@ -64,6 +65,7 @@ function getMissions(req, res, next) {
     next();
 }
 
+
 function getMissionRaw(req, res, next) {
     var digest = req.params.digest;
     if (!missions[digest]) {
@@ -78,7 +80,29 @@ function getMissionRaw(req, res, next) {
 
 function getMission() {}
 
-function getMissionDescriptionExt() {}
+function getMissionDescriptionExt(req, res, next) {
+    var digest = req.params.digest;
+    if (!missions[digest]) {
+        res.send(404);
+        return next();
+    }
+
+    if (!missions[digest].content) {
+        res.send(500);
+        return next();
+    }
+
+    pbo.getDescriptionExt(missions[digest].content, function (err, content) {
+        if (err) {
+            res.send(500);
+            return next();
+        }
+
+        res.send(200, content);
+        next();
+    });
+
+}
 
 
 var server = restify.createServer();
@@ -96,7 +120,12 @@ server.get('/resources/:filename', function (req, res, next) {
     var contents = '';
     try {
         contents = resourceFetcher.getRaw(req.url);
-        res.send(200, contents);
+        res.writeHead(200, {
+            'Content-Length': Buffer.byteLength(contents),
+            'Content-Type': 'text/plain'
+        });
+        res.write(contents);
+        res.end();
     } catch (e) {
         res.send(404);
     }
