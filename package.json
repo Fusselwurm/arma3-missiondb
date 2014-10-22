@@ -1,0 +1,10 @@
+{
+  "name": "arma3-missiondb",
+  "version": "0.0.1",
+  "dependencies": {
+    "restify": "~2.8.3"
+  },
+  "devDependencies": {
+    "frisby": "~0.8.3"
+  }
+}
