@@ -9,7 +9,6 @@ frisby.create('get "hello" moo')
     .expectBodyContains("hello moo")
     .toss();
 
-
 frisby.
     create('register invalid URL').
     post(endpoint + '/register', {url: 'meine-datei.pbo'}).

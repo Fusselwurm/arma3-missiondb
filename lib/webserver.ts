@@ -10,7 +10,6 @@ var
     getConfig = require(__dirname + '/config.js'),
     baseUrl = getConfig('baseUrl');
 
-
 function respondHelllo(req, res, next) {
     res.send('hello ' + req.params.name);
     next();
@@ -79,28 +78,30 @@ function getMissionRaw(req, res, next) {
 
 function getMission() {}
 
-function getMissionDescriptionExt(req, res, next) {
-    var digest = req.params.digest;
-    if (!missions[digest]) {
-        res.send(404);
-        return next();
-    }
+function getMissionFileHandler(filename) {
+    return function (req, res, next) {
+        var digest = req.params.digest;
+        if (!missions[digest]) {
+            res.send(404);
+            return next();
+        }
 
-    if (!missions[digest].content) {
-        res.send(500);
-        return next();
-    }
-
-    pbo.getDescriptionExt(missions[digest].content, function (err, content) {
-        if (err) {
+        if (!missions[digest].content) {
             res.send(500);
             return next();
         }
 
-        res.send(200, content);
-        next();
-    });
+        pbo.getPboContentsFile(filename, missions[digest].content, function (err, content) {
+            if (err) {
+                res.send(500);
+                return next();
+            }
 
+            res.send(200, content);
+            next();
+        });
+
+    }
 }
 
 exports.init = function (callback) {
@@ -114,7 +115,8 @@ exports.init = function (callback) {
     server.get('/missions/', getMissions);
     server.get('/mission/:digest', getMission);
     server.get('/mission/:digest/raw', getMissionRaw);
-    server.get('/mission/:digest/description.ext', getMissionDescriptionExt);
+    server.get('/mission/:digest/description.ext', getMissionFileHandler('description.ext'));
+    server.get('/mission/:digest/mission.sqm', getMissionFileHandler('mission.sqm'));
 
     server.get('/resources/:filename', function (req, res, next) {
         var contents = '';

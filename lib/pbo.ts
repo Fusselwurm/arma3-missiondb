@@ -1,17 +1,12 @@
-var cpbo = 'wine ' + __dirname + '/../bin/cpbo.exe',
+var
+    cpbo = 'wine ' + __dirname + '/../bin/cpbo.exe',
     cpboExtract = cpbo + ' -e %s %s',
     fs = require('fs'),
     exec = require('child_process').exec,
     crypto = require('crypto'),
-    pboCachedir = require(__dirname + '/config.js').pboCachedir || '/tmp';
-
-function getDescriptionExtFilename(directory: String) {
-    if (fs.existsSync(directory + '/description.ext')) {
-        return 'description.ext';
-    } else if (fs.existsSync(directory + '/Description.ext')) {
-        return 'Description.ext';
-    }
-}
+    async = require('async'),
+    pboCachedir = require(__dirname + '/config.js')('pboCachedir'),
+    format = require('util').format;
 
 /**
  *
@@ -38,30 +33,58 @@ function extractPbo(pboString, callback: Function) {
 
         fs.writeFileSync(pboFilename, pboString);
 
-        exec(cpboExtract.replace('%s', pboFilename).replace('%s', pboDirname), function (error, stdout, stderr) {
+        exec(format(cpboExtract, pboFilename, pboDirname), function (error, stdout, stderr) {
             console.log('stdout: ' + stdout);
             console.log('stderr: ' + stderr);
 
             if (stderr) {
                 callback(new Error(stderr));
             } else {
-                callback(null, pboDirname);
+                lowercaseDir(pboDirname, function (err) {
+                    if (err) {
+                        throw err;
+                    }
+                    console.log('...lowercased all filenames.');
+                    callback(null, pboDirname);
+                });
+
             }
         });
     });
 }
 
-exports.getDescriptionExt = function (pboString: String, fn: Function) {
+function lowercaseDir(dirname: String, callback) {
+    fs.readdir(dirname, function (err: Error, filenames: Array) {
+        var lowercaseFile = function (callback) {
+            var
+                origFilename = filenames.pop(),
+                lowercaseFilename = origFilename.toLowerCase();
 
+            if (origFilename === lowercaseFilename) {
+                return callback();
+            }
+
+            fs.rename(format('%s/%s', dirname, origFilename), format('%s/%s', dirname, lowercaseFilename), function (err) {
+                if (!err) {
+                    console.log(format('\trenamed %s => %s', origFilename, lowercaseFilename));
+                }
+                callback(err);
+            });
+        };
+
+        async.parallel(filenames.map(function () {return lowercaseFile; }), callback);
+    });
+}
+
+exports.getPboContentsFile = function(filename: String, pboString: String, fn: Function) {
     extractPbo(pboString, function (err, unpackedDirName: String) {
-        var fName = getDescriptionExtFilename(unpackedDirName),
-            content;
-        if (fName) {
-            content = fs.readFileSync(unpackedDirName + '/' + fName, 'UTF-8');
-            fn(null, content);
-        } else {
-            fn(new Error('couldnt find description.ext after extraction'));
-        }
+        fs.readFile(unpackedDirName + '/' + filename, 'UTF-8', function (err, content) {
+            if (err) {
+                fn(new Error(format('couldnt find %s after extraction', filename)));
+            } else {
+                fn(null, content);
+            }
+        });
     });
 };
 
@@ -72,6 +95,7 @@ exports.init = function (callback) {
                 if (err) {
                     throw err;
                 }
+                console.log('cache dir created.');
                 callback();
             });
             return;
@@ -79,6 +103,7 @@ exports.init = function (callback) {
         if (!stats.isDirectory()) {
             throw new Error('cachedir ' + pboCachedir + ' exists but is no directory');
         }
+        console.log('cache dir exists.');
         callback();
     });
 };
