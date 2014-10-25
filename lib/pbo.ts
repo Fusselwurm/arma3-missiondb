@@ -2,7 +2,7 @@ var cpbo = 'wine ' + __dirname + '/../bin/cpbo.exe',
     cpboExtract = cpbo + ' -e %s %s',
     fs = require('fs'),
     exec = require('child_process').exec,
-    fCount = (new Date()).getTime();
+    crypto = require('crypto');
 
 function getDescriptionExtFilename(directory) {
     if (fs.existsSync(directory + '/description.ext')) {
@@ -12,17 +12,38 @@ function getDescriptionExtFilename(directory) {
     }
 }
 
-exports.getDescriptionExt = function (pboString, fn) {
+/**
+ *
+ * @param pboString
+ * @param callback receives path to extracted pbo
+ */
+function extractPbo(pboString, callback: Function) {
     var
-        fileName = '/tmp/arma3-missiondb-' + fCount + '.pbo',
-        unpackedDirName = '/tmp/arma3-missiondb-' + fCount;
-    fCount += 1;
+        sha1 = crypto.createHash('sha1'),
+        digest;
+
+    sha1.update(pboString);
+    digest = sha1.digest('hex');
+
 
     fs.writeFileSync(fileName, pboString);
 
     exec(cpboExtract.replace('%s', fileName).replace('%s', unpackedDirName), function (error, stdout, stderr) {
         console.log('stdout: ' + stdout);
         console.log('stderr: ' + stderr);
+
+        if (stderr) {
+            callback(new Error(stderr));
+        } else {
+            callback(null, unpackedDirName);
+        }
+
+    });
+}
+
+exports.getDescriptionExt = function (pboString, fn) {
+
+    extractPbo(function (err, unpackedDirName) {
         var fName = getDescriptionExtFilename(unpackedDirName),
             content;
         if (fName) {
@@ -33,3 +54,4 @@ exports.getDescriptionExt = function (pboString, fn) {
         }
     });
 };
+
