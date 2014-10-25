@@ -1,4 +1,4 @@
-#!/bin/env node
+#!/usr/bin/env node
 
 var restify = require('restify'),
     url = require('url'),
