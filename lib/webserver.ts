@@ -1,6 +1,15 @@
 var
     restify = require('restify'),
-    resourceFetcher = require(__dirname + '/get-resource.js');
+    resourceFetcher = require(__dirname + '/get-resource.js'),
+    missions = {},
+    missionFetcher = require(__dirname + '/mission-fetcher.js'),
+    pbo = require(__dirname + '/pbo.js'),
+    errorUrls = {},
+    crypto = require('crypto'),
+    url = require('url'),
+    getConfig = require(__dirname + '/config.js'),
+    baseUrl = getConfig('baseUrl');
+
 
 function respondHelllo(req, res, next) {
     res.send('hello ' + req.params.name);
