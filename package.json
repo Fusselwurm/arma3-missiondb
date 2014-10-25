@@ -2,7 +2,8 @@
   "name": "arma3-missiondb",
   "version": "0.0.1",
   "dependencies": {
-    "restify": "~2.8.3"
+    "restify": "~2.8.3",
+    "typescript-require": "~0.2.6"
   },
   "devDependencies": {
     "frisby": "~0.8.3",
