@@ -1,62 +1,51 @@
+/// <reference path="../typings/tsd.d.ts" />
+/// <reference path="./config.ts" />
+/// <reference path="./MissionRepository.ts" />
+/// <reference path="./MissionRepository.ts" />
+/// <reference path="./ResourceFetcher.ts" />
+
+import url = require('url');
+import restify = require('restify');
+
 var
-    restify = require('restify'),
-    resourceFetcher = require(__dirname + '/get-resource.js'),
     missions = {},
-    missionFetcher = require(__dirname + '/mission-fetcher.js'),
-    pbo = require(__dirname + '/pbo.js'),
     errorUrls = {},
-    crypto = require('crypto'),
-    url = require('url'),
-    getConfig = require(__dirname + '/config.js'),
-    baseUrl = getConfig('baseUrl');
+    missionRepository = new MissionRepository(),
+    baseUrl = Config.get('baseUrl'),
+    resourceFetcher = new ResourceFetcher();
 
 function respondHelllo(req, res, next) {
     res.send('hello ' + req.params.name);
     next();
 }
-
-function register(digest, url) {
-    missions[digest] = {
-        url: url,
-        lastUpdate: null
-    };
-    missionFetcher.fetchHttp(url, function (err, data) {
-        if (err) {
-            delete missions[digest];
-            if (err.code === 'ENOTFOUND') {
-                errorUrls[digest] = 404;
-            }
-            errorUrls[digest] = 500;
-        }
-        console.log('successfully fetched ' + url);
-        missions[digest].content = data;
-        missions[digest].lastUpdate = new Date();
-    });
-}
-
 function validUrl(string) {
     var bits = url.parse(string);
 
     return bits.protocol === 'http:' && bits.host && bits.path;
 }
 
+
 function registerUrl(req, res, next) {
     var
         missionUrl = req.params && req.params.url,
-        hash = crypto.createHash('sha1'),
-        digest;
+        location,
+        status;
 
-    hash.update(missionUrl);
-    digest = hash.digest('hex');
-    if (!missionUrl) {
+    if (!missionUrl || !validUrl(missionUrl)) {
         res.send(400);
-    } else if (!validUrl(missionUrl)) {
-        res.send(400);
-    } else {
-        register(digest, missionUrl);
-        res.send(201, {location: baseUrl + '/mission/' + digest})
+        return next();
     }
-    next();
+
+    var mission = missionRepository.registerMission(missionUrl);
+    if (mission.status === MissionStatus.Known) {
+        status = 201;
+        location = mission.contentDigest;
+    } else {
+        location = mission.urlDigest;
+        status = 202;
+    }
+    res.send(status, {location: baseUrl + '/mission/' + location});
+    return next();
 }
 
 function getMissions(req, res, next) {
@@ -104,38 +93,46 @@ function getMissionFileHandler(filename) {
     }
 }
 
-exports.init = function (callback) {
+class Webserver {
 
-    var server = restify.createServer();
-    server.use(restify.bodyParser());
-    server.get('/hello/:name', respondHelllo);
-    server.head('/hello/:name', respondHelllo);
+    init(callback: Function) : void {
 
-    server.post('/register', registerUrl);
-    server.get('/missions/', getMissions);
-    server.get('/mission/:digest', getMission);
-    server.get('/mission/:digest/raw', getMissionRaw);
-    server.get('/mission/:digest/description.ext', getMissionFileHandler('description.ext'));
-    server.get('/mission/:digest/mission.sqm', getMissionFileHandler('mission.sqm'));
+        var
+            server;
 
-    server.get('/resources/:filename', function (req, res, next) {
-        var contents = '';
-        try {
-            contents = resourceFetcher.getRaw(req.url);
-            res.writeHead(200, {
-                'Content-Length': Buffer.byteLength(contents),
-                'Content-Type': 'text/plain'
-            });
-            res.write(contents);
-            res.end();
-        } catch (e) {
-            res.send(404);
-        }
-        next();
-    });
+        server = restify.createServer();
+        server.use(restify.bodyParser());
+        server.get('/hello/:name', respondHelllo);
+        server.head('/hello/:name', respondHelllo);
 
-    server.listen(8080, function() {
-        console.log('%s listening at %s', server.name, server.url);
-        callback();
-    });
-};
+        server.post('/register', registerUrl);
+        server.get('/missions/', getMissions);
+        server.get('/mission/:digest', getMission);
+        server.get('/mission/:digest/raw', getMissionRaw);
+        server.get('/mission/:digest/description.ext', getMissionFileHandler('description.ext'));
+        server.get('/mission/:digest/mission.sqm', getMissionFileHandler('mission.sqm'));
+
+        server.get('/resources/:filename', function (req, res, next) {
+            var contents = '';
+            try {
+                contents = resourceFetcher.getRaw(req.url);
+                res.writeHead(200, {
+                    'Content-Length': Buffer.byteLength(contents),
+                    'Content-Type': 'text/plain'
+                });
+                res.write(contents);
+                res.end();
+            } catch (e) {
+                res.send(404);
+            }
+            next();
+        });
+
+        server.listen(8080, function() {
+            console.log('%s listening at %s', server.name, server.url);
+            callback();
+        });
+
+    }
+}
+
