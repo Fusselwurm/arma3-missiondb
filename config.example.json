@@ -1,4 +1,5 @@
 {
     "baseUrl": "http://localhost:8080",
-    "pboCachedir": "/tmp/arma3-missiondb"
+    "pboCachedir": "/tmp/arma3-missiondb",
+    "localDirectories": ["test/missions"]
 }
