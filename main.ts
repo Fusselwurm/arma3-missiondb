@@ -1,20 +1,18 @@
+require('typescript-require');
 /// <reference path="./typings/tsd.d.ts" />
-/// <reference path="./lib/Pbo.ts" />
-/// <reference path="./lib/webserver.ts" />
 
-import Pbo = require('lib/Pbo');
+import async = require('async');
 
-var
-    pbo = new Pbo(),
-    webserver = new Webserver();
+import Pbo = require('./lib/Pbo');
+import Webserver = require('./lib/Webserver');
 
 async.parallel([
-    pbo.init,
-    webserver.init
-], function (err, results) {
+    Pbo.init,
+    Webserver.init
+], function (err) {
     if (err) {
         console.log(err);
         process.exit(1);
     }
-    console.log('ready...');
+    console.log('ready!');
 });

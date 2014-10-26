@@ -1,18 +1,21 @@
 /// <reference path="../typings/tsd.d.ts" />
-/// <reference path="./config.ts" />
-/// <reference path="./MissionRepository.ts" />
+/// <reference path="./Config.ts" />
 /// <reference path="./MissionRepository.ts" />
 /// <reference path="./ResourceFetcher.ts" />
+/// <reference path="./Pbo.ts" />
 
 import url = require('url');
 import restify = require('restify');
 
+import Config = require('./Config');
+import MissionRepository = require('./MissionRepository');
+import Pbo = require('./Pbo');
+import ResourceFetcher = require('./ResourceFetcher');
+
 var
     missions = {},
     errorUrls = {},
-    missionRepository = new MissionRepository(),
-    baseUrl = Config.get('baseUrl'),
-    resourceFetcher = new ResourceFetcher();
+    baseUrl = Config.get('baseUrl');
 
 function respondHelllo(req, res, next) {
     res.send('hello ' + req.params.name);
@@ -23,7 +26,6 @@ function validUrl(string) {
 
     return bits.protocol === 'http:' && bits.host && bits.path;
 }
-
 
 function registerUrl(req, res, next) {
     var
@@ -36,8 +38,8 @@ function registerUrl(req, res, next) {
         return next();
     }
 
-    var mission = missionRepository.registerMission(missionUrl);
-    if (mission.status === MissionStatus.Known) {
+    var mission = MissionRepository.registerMission(missionUrl);
+    if (mission.status === MissionRepository.MissionStatus.Known) {
         status = 201;
         location = mission.contentDigest;
     } else {
@@ -80,7 +82,7 @@ function getMissionFileHandler(filename) {
             return next();
         }
 
-        pbo.getPboContentsFile(filename, missions[digest].content, function (err, content) {
+        Pbo.getPboContentsFile(filename, missions[digest].content, function (err, content) {
             if (err) {
                 res.send(500);
                 return next();
@@ -93,46 +95,41 @@ function getMissionFileHandler(filename) {
     }
 }
 
-class Webserver {
+export function init(callback: Function) : void {
+    var
+        server;
 
-    init(callback: Function) : void {
+    server = restify.createServer();
+    server.use(restify.bodyParser());
+    server.get('/hello/:name', respondHelllo);
+    server.head('/hello/:name', respondHelllo);
 
-        var
-            server;
+    server.post('/register', registerUrl);
+    server.get('/missions/', getMissions);
+    server.get('/mission/:digest', getMission);
+    server.get('/mission/:digest/raw', getMissionRaw);
+    server.get('/mission/:digest/description.ext', getMissionFileHandler('description.ext'));
+    server.get('/mission/:digest/mission.sqm', getMissionFileHandler('mission.sqm'));
 
-        server = restify.createServer();
-        server.use(restify.bodyParser());
-        server.get('/hello/:name', respondHelllo);
-        server.head('/hello/:name', respondHelllo);
+    server.get('/resources/:filename', function (req, res, next) {
+        var contents = '';
+        try {
+            contents = ResourceFetcher.getRaw(req.url);
+            res.writeHead(200, {
+                'Content-Length': Buffer.byteLength(contents),
+                'Content-Type': 'text/plain'
+            });
+            res.write(contents);
+            res.end();
+        } catch (e) {
+            res.send(404);
+        }
+        next();
+    });
 
-        server.post('/register', registerUrl);
-        server.get('/missions/', getMissions);
-        server.get('/mission/:digest', getMission);
-        server.get('/mission/:digest/raw', getMissionRaw);
-        server.get('/mission/:digest/description.ext', getMissionFileHandler('description.ext'));
-        server.get('/mission/:digest/mission.sqm', getMissionFileHandler('mission.sqm'));
+    server.listen(8080, function() {
+        console.log('%s listening at %s', server.name, server.url);
+        callback();
+    });
 
-        server.get('/resources/:filename', function (req, res, next) {
-            var contents = '';
-            try {
-                contents = resourceFetcher.getRaw(req.url);
-                res.writeHead(200, {
-                    'Content-Length': Buffer.byteLength(contents),
-                    'Content-Type': 'text/plain'
-                });
-                res.write(contents);
-                res.end();
-            } catch (e) {
-                res.send(404);
-            }
-            next();
-        });
-
-        server.listen(8080, function() {
-            console.log('%s listening at %s', server.name, server.url);
-            callback();
-        });
-
-    }
 }
-
