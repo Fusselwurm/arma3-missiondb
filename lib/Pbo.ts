@@ -16,17 +16,17 @@ var
 
 /**
  *
- * @param pboString
+ * @param pbo Buffer
  * @param callback receives path to extracted pbo
  */
-function extractPbo(pboString: string, callback: Function) {
+function extractPbo(pbo: Buffer, callback: Function) {
     var
         sha1 = crypto.createHash('sha1'),
         digest,
         pboFilename,
         pboDirname;
 
-    sha1.update(pboString);
+    sha1.update(pbo);
     digest = sha1.digest('hex');
 
     pboFilename = pboCachedir + '/' + digest + '.pbo';
@@ -37,7 +37,7 @@ function extractPbo(pboString: string, callback: Function) {
             return callback(null, pboDirname);
         }
 
-        fs.writeFileSync(pboFilename, pboString);
+        fs.writeFileSync(pboFilename, pbo);
 
         exec(format(cpboExtract, pboFilename, pboDirname), function (error, stdout, stderr) {
             console.log('stdout: ' + stdout);
@@ -82,8 +82,8 @@ function lowercaseDir(dirname: string, callback) {
     });
 }
 
-export function getPboContentsFile(filename: string, pboString: string, fn: Function) {
-    extractPbo(pboString, function (err, unpackedDirName: String) {
+export function getPboContentsFile(filename: string, pbo: Buffer, fn: Function) {
+    extractPbo(pbo, function (err, unpackedDirName: String) {
         fs.readFile(unpackedDirName + '/' + filename, 'UTF-8', function (err, content) {
             if (err) {
                 fn(new Error(format('couldnt find %s after extraction', filename)));
@@ -94,7 +94,7 @@ export function getPboContentsFile(filename: string, pboString: string, fn: Func
     });
 }
 
-export function init(callback) {
+export function init(callback: Function) {
 
     fs.stat(pboCachedir, function (err, stats) {
         if (err) {

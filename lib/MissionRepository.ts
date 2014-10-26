@@ -1,25 +1,45 @@
-var missions: Array<Mission> = [],
+/// <reference path="../typings/tsd.d.ts" />
+
+import crypto = require('crypto');
+import util = require('util');
+import MissionFetcher = require('./MissionFetcher');
+
+var
+    missions: Array<Mission> = [],
+    errorUrls: Array<string> = [],
+    format = util.format,
     scheduleMission = function (mission: Mission) {
-        ///mission.urlDigest;
-        /*
-         missions[digest] = {
-         url: url,
-         lastUpdate: null
-         };
-         missionFetcher.fetchHttp(url, function (err, data) {
-         if (err) {
-         delete missions[digest];
-         if (err.code === 'ENOTFOUND') {
-         errorUrls[digest] = 404;
-         }
-         errorUrls[digest] = 500;
-         }
-         console.log('successfully fetched ' + url);
-         missions[digest].content = data;
-         missions[digest].lastUpdate = new Date();
-         });
-         */
+        if (mission.status === MissionStatus.Fetching) {
+            return;
+        }
+        mission.status = MissionStatus.Fetching;
+        setTimeout(function () {
+            MissionFetcher.fetchHttp(mission.getUrl(), function (err: Error, data: Buffer) {
+                var missionUrl = mission.getUrl();
+                if (err) {
+                    removeMission(mission);
+                    errorUrls.push(missionUrl);
+                    console.warn(format('removed mission with invalid URL %s ', missionUrl));
+                    return;
+                }
+                console.info(format('successfully fetched %s', missionUrl));
+                mission.setContent(data);
+                mission.status = MissionStatus.Known;
+            });
+        });
     };
+
+function removeMission(mission: Mission) {
+    var idx = missions.indexOf(mission);
+    missions.splice(idx, 1);
+}
+
+function getSha1(str) {
+    var sha1 = crypto.createHash('sha1');
+    sha1.update(str);
+
+    return sha1.digest('hex');
+}
 
 export enum MissionStatus {
     Unknown,
@@ -29,19 +49,65 @@ export enum MissionStatus {
 }
 
 export class Mission {
-    url: string;
-    urlDigest: string;
-    content: string;
-    contentDigest: string;
+    private url: string;
+    private urlDigest: string;
+    private content: Buffer;
+    private contentDigest: string;
+
     status: MissionStatus = MissionStatus.Unknown;
+
+    setUrl(url) {
+        this.url = url;
+        this.urlDigest = getSha1(url);
+    }
+    getUrl(): string {
+        return this.url;
+    }
+    setContent(content: Buffer) {
+        this.content = content;
+        this.contentDigest = getSha1(content);
+    }
+    getContent(): Buffer {
+        return this.content;
+    }
+    getUrlDigest(): string {
+        return this.urlDigest;
+    }
+    getContentDigest(): string {
+        return this.contentDigest;
+    }
+}
+
+export declare class Error {
+    public name: string;
+    public message: string;
+    public stack: string;
+    constructor(message?: string);
+}
+
+export class ErrorUrlException extends Error {
+
+    constructor(public message: string) {
+        super(message);
+        this.name = 'Exception';
+        this.message = message;
+        this.stack = (<any>new Error()).stack;
+    }
+    toString() {
+        return this.name + ': ' + this.message;
+    }
 }
 
 export function registerMission(url: string): Mission {
     var
         newMission;
 
+    if (errorUrls.indexOf(url) !== -1) {
+        throw new ErrorUrlException('url has been marked as erroneous');
+    }
+
     missions.some(function (mission: Mission) {
-        if (mission.url === url) {
+        if (mission.getUrl() === url) {
             newMission = mission;
             return true;
         }
@@ -49,10 +115,22 @@ export function registerMission(url: string): Mission {
 
     if (!newMission) {
         newMission = new Mission();
+        newMission.setUrl(url);
+        if (!errorUrls.indexOf(newMission.getUrl()))
         missions.push(newMission);
         scheduleMission(newMission);
     }
 
-
     return newMission;
+}
+
+export function getMission(digest: string): Mission {
+    var result: Mission = null;
+    missions.some(function (mission: Mission) {
+        if ((mission.getUrlDigest() === digest) || mission.getContentDigest() === digest) {
+            result = mission;
+            return true;
+        }
+    });
+    return result;
 }

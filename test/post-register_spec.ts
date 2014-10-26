@@ -13,7 +13,7 @@ frisby.
     afterJSON(function(response) {
 
         frisby.
-            create('get raw data of registered Mission').
+            create('get raw data of registered Mission, before it has been fetched').
             get(response.location + '/raw').
             expectStatus(404).
             toss();
@@ -21,12 +21,12 @@ frisby.
         sleep.sleep(10);
 
         frisby.
-            create('get raw data of registered Mission').
+            create('get raw data of registered Mission after it has been fetched').
             get(response.location + '/raw').
             expectStatus(200).
             toss();
         frisby.
-            create('get description.ext of registered Mission').
+            create('get description.ext of known Mission').
             expectMaxResponseTime(20000).
             get(response.location + '/description.ext').
             expectStatus(200).

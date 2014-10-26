@@ -1,8 +1,4 @@
 /// <reference path="../typings/tsd.d.ts" />
-/// <reference path="./Config.ts" />
-/// <reference path="./MissionRepository.ts" />
-/// <reference path="./ResourceFetcher.ts" />
-/// <reference path="./Pbo.ts" />
 
 import url = require('url');
 import restify = require('restify');
@@ -12,17 +8,14 @@ import MissionRepository = require('./MissionRepository');
 import Pbo = require('./Pbo');
 import ResourceFetcher = require('./ResourceFetcher');
 
-var
-    missions = {},
-    errorUrls = {},
-    baseUrl = Config.get('baseUrl');
+var baseUrl = Config.get('baseUrl');
 
 function respondHelllo(req, res, next) {
     res.send('hello ' + req.params.name);
     next();
 }
-function validUrl(string) {
-    var bits = url.parse(string);
+function validUrl(urlString: string) {
+    var bits = url.parse(urlString);
 
     return bits.protocol === 'http:' && bits.host && bits.path;
 }
@@ -31,6 +24,7 @@ function registerUrl(req, res, next) {
     var
         missionUrl = req.params && req.params.url,
         location,
+        mission: MissionRepository.Mission,
         status;
 
     if (!missionUrl || !validUrl(missionUrl)) {
@@ -38,12 +32,19 @@ function registerUrl(req, res, next) {
         return next();
     }
 
-    var mission = MissionRepository.registerMission(missionUrl);
+    try {
+        mission = MissionRepository.registerMission(missionUrl);
+    } catch (e) {
+        if (e instanceof MissionRepository.ErrorUrlException)
+        console.log(e);
+        res.send(400);
+    }
+
     if (mission.status === MissionRepository.MissionStatus.Known) {
         status = 201;
-        location = mission.contentDigest;
+        location = mission.getContentDigest();
     } else {
-        location = mission.urlDigest;
+        location = mission.getUrlDigest();
         status = 202;
     }
     res.send(status, {location: baseUrl + '/mission/' + location});
@@ -55,34 +56,59 @@ function getMissions(req, res, next) {
     next();
 }
 
+function exceptionLoggingDecorator(decorated: Function) {
+    return function () {
+        try {
+            decorated.apply(this, arguments);
+        } catch (e) {
+            console.log(e);
+            throw e;
+        }
+    };
+}
+
 function getMissionRaw(req, res, next) {
-    var digest = req.params.digest;
-    if (!missions[digest]) {
+    var
+        digest, mission;
+
+    console.debug('someone is getting raw data...');
+
+    digest = req.params.digest;
+    mission = MissionRepository.getMission(digest);
+
+    console.debug('any did not find a mission');
+
+    if (!mission) {
         res.send(404);
-    } else if (missions[digest].content) {
-        res.send(200, missions[digest].content);
-    } else {
-        res.send(500);
+        return next();
     }
+    if (mission.getContent()) {
+        res.setHeader('Content-Type', 'application/x-pbo');
+        res.send(200, mission.getContent());
+        return next();
+    }
+
+    res.send(500);
     next();
 }
 
 function getMission() {}
 
 function getMissionFileHandler(filename) {
-    return function (req, res, next) {
-        var digest = req.params.digest;
-        if (!missions[digest]) {
+    return function (req: restify.Request, res: restify.Response, next: Function) {
+        var
+            digest = req.params.digest,
+            mission = MissionRepository.getMission(digest);
+        if (!mission) {
             res.send(404);
             return next();
         }
-
-        if (!missions[digest].content) {
+        if (!mission.getContent()) {
             res.send(500);
             return next();
         }
 
-        Pbo.getPboContentsFile(filename, missions[digest].content, function (err, content) {
+        Pbo.getPboContentsFile(filename, mission.getContent(), function (err, content) {
             if (err) {
                 res.send(500);
                 return next();
@@ -95,6 +121,15 @@ function getMissionFileHandler(filename) {
     }
 }
 
+function filenameToContentType(filename: string): string {
+    var extension = filename.split('.').pop();
+
+    var map = {
+        'pbo': 'application/x-pbo'
+    };
+    return map[extension] || 'text/plain';
+}
+
 export function init(callback: Function) : void {
     var
         server;
@@ -104,7 +139,7 @@ export function init(callback: Function) : void {
     server.get('/hello/:name', respondHelllo);
     server.head('/hello/:name', respondHelllo);
 
-    server.post('/register', registerUrl);
+    server.post('/register', exceptionLoggingDecorator(registerUrl));
     server.get('/missions/', getMissions);
     server.get('/mission/:digest', getMission);
     server.get('/mission/:digest/raw', getMissionRaw);
@@ -117,7 +152,7 @@ export function init(callback: Function) : void {
             contents = ResourceFetcher.getRaw(req.url);
             res.writeHead(200, {
                 'Content-Length': Buffer.byteLength(contents),
-                'Content-Type': 'text/plain'
+                'Content-Type': filenameToContentType(req.url)
             });
             res.write(contents);
             res.end();
@@ -131,5 +166,4 @@ export function init(callback: Function) : void {
         console.log('%s listening at %s', server.name, server.url);
         callback();
     });
-
 }

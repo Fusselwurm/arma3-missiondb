@@ -1,8 +1,12 @@
-var
-    http = require('http'),
-    url = require('url');
+/// <reference path="../typings/tsd.d.ts" />
 
-exports.fetchHttp = function (missionUrl, fn) {
+import http = require('http');
+import url = require('url');
+import util = require('util');
+
+var format = util.format;
+
+export function fetchHttp(missionUrl, fn) {
     var urlBits = url.parse(missionUrl);
     var options = {
         hostname: urlBits.hostname,
@@ -13,11 +17,10 @@ exports.fetchHttp = function (missionUrl, fn) {
 
     var req = http.request(options, function (res) {
         var response = '';
-        console.log('STATUS: ' + res.statusCode);
-        console.log('HEADERS: ' + JSON.stringify(res.headers));
+        console.debug(format('got document at %s with status %d ', res.statusCode));
+        console.debug('HEADERS: ' + JSON.stringify(res.headers));
         res.setEncoding('utf8');
         res.on('data', function (chunk) {
-            console.log('BODY: ' + chunk);
             response += chunk;
         });
         res.on('end', function () {
@@ -28,5 +31,4 @@ exports.fetchHttp = function (missionUrl, fn) {
         fn(err);
     });
     req.end();
-
-};
+}
