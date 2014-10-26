@@ -13,69 +13,79 @@ var
     missions: Array<Mission> = [],
     errorUrls: Array<string> = [],
     format = util.format,
-    logger = bunyan.createLogger({name: 'missionRepository'}),
-    scheduleMission = function (mission: Mission) {
-        if ([MissionStatus.Fetching, MissionStatus.Extracting].indexOf(mission.status) !== -1) {
-            logger.warn('mission statuis already being fetched or extracted, not doing anything');
-            return;
-        }
-        mission.status = MissionStatus.Fetching;
-        setTimeout(function () {
-            MissionFetcher.fetchHttp(mission.getUrl(), function (err: Error, data: Buffer) {
-                var missionUrl = mission.getUrl();
+    logger = bunyan.createLogger({name: 'missionRepository'});
+
+function readPboFiles(mission: Mission, dirname) {
+
+    logger.debug('reading extracted files...');
+    async.parallel([
+        function (next) {
+            fs.readFile(dirname + '/description.ext', function (err, contents) {
                 if (err) {
-                    removeMission(mission);
-                    errorUrls.push(missionUrl);
-                    logger.warn(format('removed mission with invalid URL %s ', missionUrl));
-                    return;
+                    logger.error('couldnt read description.ext :( ' + err);
+                } else {
+                    mission.setFile('description.ext', contents.toString('utf-8'));
                 }
-                logger.info(format('successfully fetched %s', missionUrl));
-                mission.setContent(data);
-                mission.status = MissionStatus.Extracting;
+                next(err);
+            });
+        },
+        function (next) {
+            fs.readFile(dirname + '/mission.sqm', function (err, contents) {
+                if (err) {
+                    logger.error('couldnt read mission.sqm :( ' + err);
+                } else {
+                    mission.setFile('mission.sqm', contents.toString('utf-8'));
+                }
+                next(err);
+            });
+        },
+    ], function (err, results) {
+        if (err) {
+            logger.error(err);
+            removeMission(mission);
+            errorUrls.push(mission.getUrl());
+        }
+        logger.debug('completed mission extration. nice');
+        mission.status = MissionStatus.Known;
+    });
+}
 
-                logger.debug('calling pbo module...');
+function scheduleMission(mission: Mission) {
+    if ([MissionStatus.Fetching, MissionStatus.Extracting].indexOf(mission.status) !== -1) {
+        logger.warn('mission statuis already being fetched or extracted, not doing anything');
+        return;
+    }
+    mission.status = MissionStatus.Fetching;
+    setTimeout(function () {
+        MissionFetcher.fetchHttp(mission.getUrl(), function (err: Error, data: Buffer) {
+            var missionUrl = mission.getUrl();
+            if (err) {
+                removeMission(mission);
+                errorUrls.push(missionUrl);
+                logger.warn(format('removed mission with invalid URL %s ', missionUrl));
+                return;
+            }
+            logger.info(format('successfully fetched %s', missionUrl));
+            mission.setContent(data);
+            mission.status = MissionStatus.Extracting;
 
-                Pbo.extractPbo(data, function (err, dirname: string) {
+            logger.debug('calling pbo module...');
+
+            try {
+                Pbo.extractPbo(data, function (err, dirname:string) {
                     if (err) {
                         logger.error('arrrgs');
                         logger.error(err);
                         return;
                     }
-                    logger.debug('reading extracted files...');
-                    async.parallel([
-                        function (next) {
-                            fs.readFile(dirname + '/description.ext', function (err, contents) {
-                                if (err) {
-                                    logger.error('couldnt read description.ext :( ' + err);
-                                } else {
-                                    mission.setFile('description.ext', contents.toString('utf-8'));
-                                }
-                                next(err);
-                            });
-                        },
-                        function (next) {
-                            fs.readFile(dirname + '/mission.sqm', function (err, contents) {
-                                if (err) {
-                                    logger.error('couldnt read mission.sqm :( ' + err);
-                                } else {
-                                    mission.setFile('mission.sqm', contents.toString('utf-8'));
-                                }
-                                next(err);
-                            });
-                        },
-                    ], function (err, results) {
-                        if (err) {
-                            logger.error(err);
-                            removeMission(mission);
-                            errorUrls.push(mission.getUrl());
-                        }
-                        logger.debug('completed mission extration. nice');
-                        mission.status = MissionStatus.Known;
-                    });
+                    readPboFiles(mission, dirname);
                 });
-            });
-        }, 1000);
-    };
+            } catch (e) {
+                logger.error(e);
+            }
+        });
+    }, 1000);
+}
 
 function removeMission(mission: Mission) {
     var idx = missions.indexOf(mission);

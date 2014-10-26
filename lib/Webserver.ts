@@ -38,7 +38,7 @@ function registerUrl(req, res, next) {
     try {
         mission = MissionRepository.registerMission(missionUrl);
     } catch (e) {
-        console.error(e);
+        logger.error(e);
         if (e instanceof MissionRepository.ErrorUrlException) {
             res.send(400);
         } else {
@@ -142,17 +142,18 @@ function filenameToContentType(filename: string): string {
     return map[extension] || 'text/plain';
 }
 
-function getResource(req, res, next) {
-    var contents = '';
+function getResource(req: restify.Request, res: restify.Response, next) {
+    var contents: Buffer;
     try {
         contents = ResourceFetcher.getRaw(req.url);
         res.writeHead(200, {
-            'Content-Length': Buffer.byteLength(contents),
+            'Content-Length': contents.length,
             'Content-Type': filenameToContentType(req.url)
         });
         res.write(contents);
         res.end();
     } catch (e) {
+        logger.warn(e);
         res.send(404);
     }
     next();

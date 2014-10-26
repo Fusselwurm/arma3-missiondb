@@ -2,9 +2,11 @@
 
 import http = require('http');
 import url = require('url');
-import util = require('util');
+import bunyan = require('bunyan');
+import fs = require('fs');
 
-var format = util.format;
+var
+    logger = bunyan.createLogger({name: 'missionFetcher'});
 
 export function fetchHttp(missionUrl, fn) {
     var urlBits = url.parse(missionUrl);
@@ -16,15 +18,16 @@ export function fetchHttp(missionUrl, fn) {
     };
 
     var req = http.request(options, function (res: http.ClientResponse) {
-        var response = '';
-        console.log(format('got document at %s with status %d ', missionUrl, res.statusCode));
-        console.log('HEADERS: ' + JSON.stringify(res.headers));
-        res.setEncoding('utf8');
-        res.on('data', function (chunk) {
-            response += chunk;
+        var response: Array<Buffer> = [];
+        logger.info('getting document at %s with status %d ', missionUrl, res.statusCode);
+        logger.info('HEADERS: ' + JSON.stringify(res.headers));
+        res.on('data', function (chunk: Buffer) {
+            response.push(chunk);
         });
         res.on('end', function () {
-            fn(null, response)
+            var result: Buffer = Buffer.concat(response);
+            logger.info('got document with %s bytes from %s', result.length, missionUrl);
+            fn(null, Buffer.concat(response));
         });
     });
     req.on('error', function (err) {

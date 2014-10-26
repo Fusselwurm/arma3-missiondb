@@ -18,6 +18,8 @@ var
     format = util.format,
     logger = bunyan.createLogger({name: "pbo"});
 
+logger.level(bunyan.DEBUG);
+
 /**
  *
  * @param pbo Buffer
@@ -36,30 +38,40 @@ export function extractPbo(pbo: Buffer, callback: Function) {
     pboFilename = pboCachedir + '/' + digest + '.pbo';
     pboDirname = pboCachedir + '/' + digest;
 
-    logger.debug('removing old pbo dir, writing pbo file...');
+    logger.debug('removing old pbo dir, writing pbo file with %d bytes...', pbo.length);
 
     fsExtra.rmrfSync(pboDirname);
-    fs.writeFileSync(pboFilename, pbo);
+    //fs.unlinkSync(pboFilename);
+    //fs.writeFileSync(pboFilename, pbo);
+    var wstream = fs.createWriteStream(pboFilename);
+    wstream.write(pbo);
+    wstream.on('finish', function () {
 
-    logger.debug('executing cpbo...');
 
-    exec(format(cpboExtract, pboFilename, pboDirname), function (error, stdout, stderr) {
-        logger.debug('stdout: ' + stdout);
-        logger.debug('stderr: ' + stderr);
+        var x = fs.statSync(pboFilename);
+        logger.debug(x.size);
 
-        if (stderr) {
-            callback(new Error(stderr.toString()));
-        } else {
-            lowercaseDir(pboDirname, function (err) {
-                if (err) {
-                    throw err;
-                }
-                logger.debug('...lowercased all filenames.');
-                callback(null, pboDirname);
-            });
+        logger.debug('executing cpbo...');
 
-        }
+        exec(format(cpboExtract, pboFilename, pboDirname), function (error, stdout, stderr) {
+            logger.debug('stdout: ' + stdout);
+            logger.debug('stderr: ' + stderr);
+
+            if (stderr) {
+                callback(new Error(stderr.toString()));
+            } else {
+                lowercaseDir(pboDirname, function (err) {
+                    if (err) {
+                        throw err;
+                    }
+                    logger.debug('...lowercased all filenames.');
+                    callback(null, pboDirname);
+                });
+
+            }
+        });
     });
+    wstream.end();
 }
 
 function lowercaseDir(dirname: string, callback) {
