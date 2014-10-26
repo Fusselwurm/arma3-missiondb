@@ -17,7 +17,7 @@ export function fetchHttp(missionUrl, fn) {
 
     var req = http.request(options, function (res: http.ClientResponse) {
         var response = '';
-        console.log(format('got document at %s with status %d ', res.statusCode));
+        console.log(format('got document at %s with status %d ', missionUrl, res.statusCode));
         console.log('HEADERS: ' + JSON.stringify(res.headers));
         res.setEncoding('utf8');
         res.on('data', function (chunk) {

@@ -3,7 +3,10 @@
 import crypto = require('crypto');
 import util = require('util');
 import bunyan = require('bunyan');
+import fs = require('fs');
+
 import MissionFetcher = require('./MissionFetcher');
+import Pbo = require('./Pbo');
 
 var
     missions: Array<Mission> = [],
@@ -11,7 +14,8 @@ var
     format = util.format,
     logger = bunyan.createLogger({name: 'missionRepository'}),
     scheduleMission = function (mission: Mission) {
-        if (mission.status === MissionStatus.Fetching) {
+        if ([MissionStatus.Fetching, MissionStatus.Extracting].indexOf(mission.status) !== -1) {
+            logger.warn('mission statuis already being fetched or extracted, not doing anything');
             return;
         }
         mission.status = MissionStatus.Fetching;
@@ -26,7 +30,39 @@ var
                 }
                 logger.info(format('successfully fetched %s', missionUrl));
                 mission.setContent(data);
-                mission.status = MissionStatus.Known;
+                mission.status = MissionStatus.Extracting;
+
+                Pbo.extractPbo(data, function (err, dirname: string) {
+                    if (err) {
+                        logger.error('arrrgs');
+                        logger.error(err);
+                        return;
+                    }
+                    async.parallel([
+                        function (next) {
+                            fs.readFile(dirname + '/description.ext', function (err, contents) {
+                                if (err) {
+                                    logger.error('couldnt read description.ext :( ' + err);
+                                } else {
+                                    mission.setFile('description.ext', contents.toString('utf-8'));
+                                }
+                                next();
+                            });
+                        },
+                        function (next) {
+                            fs.readFile(dirname + '/mission.sqm', function (err, contents) {
+                                if (err) {
+                                    logger.error('couldnt read description.ext :( ' + err);
+                                } else {
+                                    mission.setFile('mission.sqm', contents.toString('utf-8'));
+                                }
+                                next();
+                            });
+                        },
+                    ], function () {
+                        mission.status = MissionStatus.Known;
+                    });
+                });
             });
         }, 1000);
     };
@@ -45,8 +81,8 @@ function getSha1(str) {
 
 export enum MissionStatus {
     Unknown,
-    Registered,
     Fetching,
+    Extracting,
     Known
 }
 
@@ -55,6 +91,7 @@ export class Mission {
     private urlDigest: string;
     private content: Buffer;
     private contentDigest: string;
+    private files: Object = {};
 
     status: MissionStatus = MissionStatus.Unknown;
 
@@ -77,6 +114,12 @@ export class Mission {
     }
     getContentDigest(): string {
         return this.contentDigest;
+    }
+    setFile(filename: string, content: string) {
+        this.files[filename] = content;
+    }
+    getFile(filename: string): string {
+        return this.files[filename] || '';
     }
 }
 

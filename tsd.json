@@ -16,6 +16,9 @@
     },
     "bunyan/bunyan.d.ts": {
       "commit": "bd9a1922e44ddf35953587a92c5caf4242bf6ea5"
+    },
+    "fs-extra/fs-extra.d.ts": {
+      "commit": "bd9a1922e44ddf35953587a92c5caf4242bf6ea5"
     }
   }
 }

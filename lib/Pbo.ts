@@ -6,6 +6,7 @@ import crypto = require('crypto');
 import fs = require('fs');
 import async = require('async');
 import bunyan = require('bunyan');
+import fsExtra = require('fs-extra');
 
 import Config = require('./Config');
 
@@ -22,7 +23,7 @@ var
  * @param pbo Buffer
  * @param callback receives path to extracted pbo
  */
-function extractPbo(pbo: Buffer, callback: Function) {
+export function extractPbo(pbo: Buffer, callback: Function) {
     var
         sha1 = crypto.createHash('sha1'),
         digest,
@@ -35,30 +36,25 @@ function extractPbo(pbo: Buffer, callback: Function) {
     pboFilename = pboCachedir + '/' + digest + '.pbo';
     pboDirname = pboCachedir + '/' + digest;
 
-    fs.stat(pboDirname, function (err) {
-        if (!err) {
-            return callback(null, pboDirname);
+    fs.rmrfSync(pboDirname);
+    fs.writeFileSync(pboFilename, pbo);
+
+    exec(format(cpboExtract, pboFilename, pboDirname), function (error, stdout, stderr) {
+        logger.debug('stdout: ' + stdout);
+        logger.debug('stderr: ' + stderr);
+
+        if (stderr) {
+            callback(new Error(stderr.toString()));
+        } else {
+            lowercaseDir(pboDirname, function (err) {
+                if (err) {
+                    throw err;
+                }
+                logger.debug('...lowercased all filenames.');
+                callback(null, pboDirname);
+            });
+
         }
-
-        fs.writeFileSync(pboFilename, pbo);
-
-        exec(format(cpboExtract, pboFilename, pboDirname), function (error, stdout, stderr) {
-            logger.debug('stdout: ' + stdout);
-            logger.debug('stderr: ' + stderr);
-
-            if (stderr) {
-                callback(new Error(stderr.toString()));
-            } else {
-                lowercaseDir(pboDirname, function (err) {
-                    if (err) {
-                        throw err;
-                    }
-                    logger.debug('...lowercased all filenames.');
-                    callback(null, pboDirname);
-                });
-
-            }
-        });
     });
 }
 
@@ -82,18 +78,6 @@ function lowercaseDir(dirname: string, callback) {
         };
 
         async.parallel(filenames.map(function () {return lowercaseFile; }), callback);
-    });
-}
-
-export function getPboContentsFile(filename: string, pbo: Buffer, fn: Function) {
-    extractPbo(pbo, function (err, unpackedDirName: String) {
-        fs.readFile(unpackedDirName + '/' + filename, 'UTF-8', function (err, content) {
-            if (err) {
-                fn(new Error(format('couldnt find %s after extraction', filename)));
-            } else {
-                fn(null, content);
-            }
-        });
     });
 }
 

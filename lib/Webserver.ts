@@ -117,20 +117,19 @@ function getMissionFileHandler(filename) {
             return next();
         }
         if (!mission.getContent()) {
+            logger.warn('couldnt find mission content for mission %s', mission.getUrl());
             res.send(500);
             return next();
         }
+        if (!mission.getFile(filename)) {
+            logger.warn('couldnt find file %s', filename)
+            res.send(404);
+            return next();
+        }
 
-        Pbo.getPboContentsFile(filename, mission.getContent(), function (err, content) {
-            if (err) {
-                res.send(500);
-                return next();
-            }
-
-            res.send(200, content);
-            next();
-        });
-
+        res.contentType = 'text/plain';
+        res.send(200, mission.getFile(filename));
+        next();
     }
 }
 
