@@ -6,7 +6,7 @@ import crypto = require('crypto');
 import fs = require('fs');
 import async = require('async');
 import bunyan = require('bunyan');
-import fsExtra = require('fs-extra');
+import fsExtra = require('fs.extra');
 
 import Config = require('./Config');
 
@@ -36,8 +36,12 @@ export function extractPbo(pbo: Buffer, callback: Function) {
     pboFilename = pboCachedir + '/' + digest + '.pbo';
     pboDirname = pboCachedir + '/' + digest;
 
-    fs.rmrfSync(pboDirname);
+    logger.debug('removing old pbo dir, writing pbo file...');
+
+    fsExtra.rmrfSync(pboDirname);
     fs.writeFileSync(pboFilename, pbo);
+
+    logger.debug('executing cpbo...');
 
     exec(format(cpboExtract, pboFilename, pboDirname), function (error, stdout, stderr) {
         logger.debug('stdout: ' + stdout);

@@ -2,9 +2,12 @@ require('typescript-require');
 /// <reference path="./typings/tsd.d.ts" />
 
 import async = require('async');
+import bunyan = require('bunyan');
 
 import Pbo = require('./lib/Pbo');
 import Webserver = require('./lib/Webserver');
+
+var logger = bunyan.createLogger({name: 'main'});
 
 async.parallel([
     Pbo.init,
@@ -14,5 +17,5 @@ async.parallel([
         console.log(err);
         process.exit(1);
     }
-    console.log('ready!');
+    logger.info('ready!');
 });

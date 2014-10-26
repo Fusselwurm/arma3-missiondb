@@ -4,6 +4,7 @@ import crypto = require('crypto');
 import util = require('util');
 import bunyan = require('bunyan');
 import fs = require('fs');
+import async = require('async');
 
 import MissionFetcher = require('./MissionFetcher');
 import Pbo = require('./Pbo');
@@ -32,12 +33,15 @@ var
                 mission.setContent(data);
                 mission.status = MissionStatus.Extracting;
 
+                logger.debug('calling pbo module...');
+
                 Pbo.extractPbo(data, function (err, dirname: string) {
                     if (err) {
                         logger.error('arrrgs');
                         logger.error(err);
                         return;
                     }
+                    logger.debug('reading extracted files...');
                     async.parallel([
                         function (next) {
                             fs.readFile(dirname + '/description.ext', function (err, contents) {
@@ -46,20 +50,26 @@ var
                                 } else {
                                     mission.setFile('description.ext', contents.toString('utf-8'));
                                 }
-                                next();
+                                next(err);
                             });
                         },
                         function (next) {
                             fs.readFile(dirname + '/mission.sqm', function (err, contents) {
                                 if (err) {
-                                    logger.error('couldnt read description.ext :( ' + err);
+                                    logger.error('couldnt read mission.sqm :( ' + err);
                                 } else {
                                     mission.setFile('mission.sqm', contents.toString('utf-8'));
                                 }
-                                next();
+                                next(err);
                             });
                         },
-                    ], function () {
+                    ], function (err, results) {
+                        if (err) {
+                            logger.error(err);
+                            removeMission(mission);
+                            errorUrls.push(mission.getUrl());
+                        }
+                        logger.debug('completed mission extration. nice');
                         mission.status = MissionStatus.Known;
                     });
                 });
