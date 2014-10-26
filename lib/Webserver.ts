@@ -2,13 +2,16 @@
 
 import url = require('url');
 import restify = require('restify');
+import bunyan = require('bunyan');
 
 import Config = require('./Config');
 import MissionRepository = require('./MissionRepository');
 import Pbo = require('./Pbo');
 import ResourceFetcher = require('./ResourceFetcher');
 
-var baseUrl = Config.get('baseUrl');
+var
+    baseUrl = Config.get('baseUrl'),
+    logger = bunyan.createLogger({name: 'webserver'});
 
 function respondHelllo(req, res, next) {
     res.send('hello ' + req.params.name);
@@ -35,9 +38,13 @@ function registerUrl(req, res, next) {
     try {
         mission = MissionRepository.registerMission(missionUrl);
     } catch (e) {
-        if (e instanceof MissionRepository.ErrorUrlException)
-        console.log(e);
-        res.send(400);
+        console.error(e);
+        if (e instanceof MissionRepository.ErrorUrlException) {
+            res.send(400);
+        } else {
+            res.send(500);
+        }
+        return next();
     }
 
     if (mission.status === MissionRepository.MissionStatus.Known) {
@@ -71,12 +78,13 @@ function getMissionRaw(req, res, next) {
     var
         digest, mission;
 
-    console.debug('someone is getting raw data...');
-
     digest = req.params.digest;
+
+    logger.debug('someone is getting raw data by digest ' + digest + '...');
+
     mission = MissionRepository.getMission(digest);
 
-    console.debug('any did not find a mission');
+    logger.debug('and did not find a mission');
 
     if (!mission) {
         res.send(404);
@@ -96,9 +104,14 @@ function getMission() {}
 
 function getMissionFileHandler(filename) {
     return function (req: restify.Request, res: restify.Response, next: Function) {
-        var
-            digest = req.params.digest,
-            mission = MissionRepository.getMission(digest);
+        var digest, mission;
+
+        digest = req.params.digest;
+        logger.debug('getting ' + filename + ' with digest ' + digest + ' ...');
+        mission = MissionRepository.getMission(digest);
+
+        logger.debug('still alive ... ,mission is ' + mission);
+
         if (!mission) {
             res.send(404);
             return next();
@@ -130,6 +143,22 @@ function filenameToContentType(filename: string): string {
     return map[extension] || 'text/plain';
 }
 
+function getResource(req, res, next) {
+    var contents = '';
+    try {
+        contents = ResourceFetcher.getRaw(req.url);
+        res.writeHead(200, {
+            'Content-Length': Buffer.byteLength(contents),
+            'Content-Type': filenameToContentType(req.url)
+        });
+        res.write(contents);
+        res.end();
+    } catch (e) {
+        res.send(404);
+    }
+    next();
+}
+
 export function init(callback: Function) : void {
     var
         server;
@@ -146,24 +175,10 @@ export function init(callback: Function) : void {
     server.get('/mission/:digest/description.ext', getMissionFileHandler('description.ext'));
     server.get('/mission/:digest/mission.sqm', getMissionFileHandler('mission.sqm'));
 
-    server.get('/resources/:filename', function (req, res, next) {
-        var contents = '';
-        try {
-            contents = ResourceFetcher.getRaw(req.url);
-            res.writeHead(200, {
-                'Content-Length': Buffer.byteLength(contents),
-                'Content-Type': filenameToContentType(req.url)
-            });
-            res.write(contents);
-            res.end();
-        } catch (e) {
-            res.send(404);
-        }
-        next();
-    });
+    server.get('/resources/:filename', getResource);
 
     server.listen(8080, function() {
-        console.log('%s listening at %s', server.name, server.url);
+        logger.info('%s listening at %s', server.name, server.url);
         callback();
     });
 }

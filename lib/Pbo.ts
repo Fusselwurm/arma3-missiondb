@@ -4,6 +4,8 @@ import child_process = require('child_process');
 import util = require('util');
 import crypto = require('crypto');
 import fs = require('fs');
+import async = require('async');
+import bunyan = require('bunyan');
 
 import Config = require('./Config');
 
@@ -12,7 +14,8 @@ var
     cpboExtract = cpbo + ' -e %s %s',
     exec = child_process.exec,
     pboCachedir = Config.get('pboCachedir'),
-    format = util.format;
+    format = util.format,
+    logger = bunyan.createLogger({name: "pbo"});
 
 /**
  *
@@ -40,8 +43,8 @@ function extractPbo(pbo: Buffer, callback: Function) {
         fs.writeFileSync(pboFilename, pbo);
 
         exec(format(cpboExtract, pboFilename, pboDirname), function (error, stdout, stderr) {
-            console.log('stdout: ' + stdout);
-            console.log('stderr: ' + stderr);
+            logger.debug('stdout: ' + stdout);
+            logger.debug('stderr: ' + stderr);
 
             if (stderr) {
                 callback(new Error(stderr.toString()));
@@ -50,7 +53,7 @@ function extractPbo(pbo: Buffer, callback: Function) {
                     if (err) {
                         throw err;
                     }
-                    console.log('...lowercased all filenames.');
+                    logger.debug('...lowercased all filenames.');
                     callback(null, pboDirname);
                 });
 
@@ -61,7 +64,7 @@ function extractPbo(pbo: Buffer, callback: Function) {
 
 function lowercaseDir(dirname: string, callback) {
     fs.readdir(dirname, function (err: Error, filenames: Array<string>) {
-        var lowercaseFile = function (callback) {
+        var lowercaseFile = function (callback: Function) {
             var
                 origFilename = filenames.pop(),
                 lowercaseFilename = origFilename.toLowerCase();
@@ -72,7 +75,7 @@ function lowercaseDir(dirname: string, callback) {
 
             fs.rename(format('%s/%s', dirname, origFilename), format('%s/%s', dirname, lowercaseFilename), function (err) {
                 if (!err) {
-                    console.log(format('\trenamed %s => %s', origFilename, lowercaseFilename));
+                    logger.debug(format('renamed %s => %s', origFilename, lowercaseFilename));
                 }
                 callback(err);
             });
@@ -102,7 +105,7 @@ export function init(callback: Function) {
                 if (err) {
                     throw err;
                 }
-                console.log('cache dir created.');
+                logger.info('cache dir created.');
                 callback();
             });
             return;
@@ -110,7 +113,7 @@ export function init(callback: Function) {
         if (!stats.isDirectory()) {
             throw new Error('cachedir ' + pboCachedir + ' exists but is no directory');
         }
-        console.log('cache dir exists.');
+        logger.info('cache dir exists.');
         callback();
     });
 }

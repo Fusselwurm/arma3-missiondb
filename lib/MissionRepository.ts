@@ -2,12 +2,14 @@
 
 import crypto = require('crypto');
 import util = require('util');
+import bunyan = require('bunyan');
 import MissionFetcher = require('./MissionFetcher');
 
 var
     missions: Array<Mission> = [],
     errorUrls: Array<string> = [],
     format = util.format,
+    logger = bunyan.createLogger({name: 'missionRepository'}),
     scheduleMission = function (mission: Mission) {
         if (mission.status === MissionStatus.Fetching) {
             return;
@@ -19,14 +21,14 @@ var
                 if (err) {
                     removeMission(mission);
                     errorUrls.push(missionUrl);
-                    console.warn(format('removed mission with invalid URL %s ', missionUrl));
+                    logger.warn(format('removed mission with invalid URL %s ', missionUrl));
                     return;
                 }
-                console.info(format('successfully fetched %s', missionUrl));
+                logger.info(format('successfully fetched %s', missionUrl));
                 mission.setContent(data);
                 mission.status = MissionStatus.Known;
             });
-        });
+        }, 1000);
     };
 
 function removeMission(mission: Mission) {
@@ -116,8 +118,8 @@ export function registerMission(url: string): Mission {
     if (!newMission) {
         newMission = new Mission();
         newMission.setUrl(url);
-        if (!errorUrls.indexOf(newMission.getUrl()))
         missions.push(newMission);
+        logger.info('pushed mission ' + newMission);
         scheduleMission(newMission);
     }
 
@@ -125,12 +127,16 @@ export function registerMission(url: string): Mission {
 }
 
 export function getMission(digest: string): Mission {
-    var result: Mission = null;
+    var result: Mission;
+    logger.debug('getting mission by digest ' + digest + ', theres ' + missions.length + ' missions available');
     missions.some(function (mission: Mission) {
         if ((mission.getUrlDigest() === digest) || mission.getContentDigest() === digest) {
             result = mission;
             return true;
         }
     });
+
+    logger.debug('getMission: got mission ' + result + ' from repo');
+
     return result;
 }

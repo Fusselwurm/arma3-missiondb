@@ -15,10 +15,10 @@ export function fetchHttp(missionUrl, fn) {
         method: 'GET'
     };
 
-    var req = http.request(options, function (res) {
+    var req = http.request(options, function (res: http.ClientResponse) {
         var response = '';
-        console.debug(format('got document at %s with status %d ', res.statusCode));
-        console.debug('HEADERS: ' + JSON.stringify(res.headers));
+        console.log(format('got document at %s with status %d ', res.statusCode));
+        console.log('HEADERS: ' + JSON.stringify(res.headers));
         res.setEncoding('utf8');
         res.on('data', function (chunk) {
             response += chunk;
