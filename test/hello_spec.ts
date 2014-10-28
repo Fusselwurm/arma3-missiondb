@@ -8,15 +8,3 @@ frisby.create('get "hello" moo')
     .expectHeaderContains('content-type', 'application/json')
     .expectBodyContains("hello moo")
     .toss();
-
-frisby.
-    create('register invalid URL').
-    post(endpoint + '/register', {url: 'meine-datei.pbo'}).
-    expectStatus(400).
-    toss();
-
-frisby.
-    create('register URL that does not exist').
-    post(endpoint + '/register', {url: 'http://moo.test/doesnotexist'}).
-    expectStatus(201).
-    toss();

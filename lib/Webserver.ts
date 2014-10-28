@@ -13,6 +13,8 @@ var
     baseUrl = Config.get('baseUrl'),
     logger = bunyan.createLogger({name: 'webserver'});
 
+logger.level(bunyan.DEBUG)
+
 function respondHelllo(req, res, next) {
     res.send('hello ' + req.params.name);
     next();
@@ -74,7 +76,7 @@ function exceptionLoggingDecorator(decorated: Function) {
     };
 }
 
-function getMissionRaw(req, res, next) {
+function getMissionRaw(req: restify.Reqest, res: restify.Response, next: Function) {
     var
         digest, mission;
 
@@ -91,13 +93,15 @@ function getMissionRaw(req, res, next) {
         return next();
     }
     if (mission.getContent()) {
-        res.setHeader('Content-Type', 'application/x-pbo');
-        res.send(200, mission.getContent());
+        res.writeHead(200, {'Content-Type': 'application/x-pbo'});
+        //res.setHeader('Content-Type', 'application/x-pbo');
+        //res.send(200, mission.getContent());
+        res.end(mission.getContent());
         return next();
     }
 
-    res.send(500);
-    next();
+    res.send(503, {message: 'come back later'});
+    return next();
 }
 
 function getMission() {}
@@ -110,7 +114,7 @@ function getMissionFileHandler(filename) {
         logger.debug('getting ' + filename + ' with digest ' + digest + ' ...');
         mission = MissionRepository.getMission(digest);
 
-        logger.debug('still alive ... ,mission is ' + mission);
+        logger.debug('still alive, mission is ' + mission);
 
         if (!mission) {
             res.send(404);
@@ -118,11 +122,11 @@ function getMissionFileHandler(filename) {
         }
         if (!mission.getContent()) {
             logger.warn('couldnt find mission content for mission %s', mission.getUrl());
-            res.send(500);
+            res.send(503);
             return next();
         }
         if (!mission.getFile(filename)) {
-            logger.warn('couldnt find file %s', filename)
+            logger.warn('couldnt find file %s', filename);
             res.send(404);
             return next();
         }
