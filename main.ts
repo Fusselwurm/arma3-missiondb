@@ -6,12 +6,14 @@ import bunyan = require('bunyan');
 
 import Pbo = require('./lib/Pbo');
 import Webserver = require('./lib/Webserver');
+import MissionFetcherLocal = require('./lib/MissionFetcherLocal');
 
 var logger = bunyan.createLogger({name: 'main'});
 
-async.parallel([
+async.waterfall([
     Pbo.init,
-    Webserver.init
+    Webserver.init,
+    MissionFetcherLocal.init
 ], function (err) {
     if (err) {
         console.log(err);

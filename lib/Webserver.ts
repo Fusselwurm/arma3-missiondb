@@ -3,6 +3,7 @@
 import url = require('url');
 import restify = require('restify');
 import bunyan = require('bunyan');
+import _ = require('underscore');
 
 import Config = require('./Config');
 import MissionRepository = require('./MissionRepository');
@@ -13,7 +14,7 @@ var
     baseUrl = Config.get('baseUrl'),
     logger = bunyan.createLogger({name: 'webserver'});
 
-logger.level(bunyan.DEBUG)
+logger.level(bunyan.DEBUG);
 
 function respondHelllo(req, res, next) {
     res.send('hello ' + req.params.name);
@@ -23,6 +24,15 @@ function validUrl(urlString: string) {
     var bits = url.parse(urlString);
 
     return bits.protocol === 'http:' && bits.host && bits.path;
+}
+
+function wrap500(wrapped: restify.RequestHandler, req: restify.Request, res: restify.Response, next: Function) {
+    try {
+        wrapped.apply(this, _.toArray(arguments).slice(1));
+    } catch (e) {
+        logger.error(e);
+        throw e;
+    }
 }
 
 function registerUrl(req, res, next) {
@@ -61,7 +71,21 @@ function registerUrl(req, res, next) {
 }
 
 function getMissions(req, res, next) {
-    res.send([]);
+
+    var result,
+        missions = MissionRepository.getMissions();
+
+    result = missions.map(function (mission: MissionRepository.Mission): Object {
+        return {
+            originalUrl: mission.getUrl(),
+            url: baseUrl + '/mission/' + mission.getContentDigest(),
+            contentDigest: mission.getContentDigest()
+        };
+    });
+
+    logger.debug('returning %d missions on /missions', result.length);
+
+    res.send(200, result);
     next();
 }
 
@@ -76,7 +100,7 @@ function exceptionLoggingDecorator(decorated: Function) {
     };
 }
 
-function getMissionRaw(req: restify.Reqest, res: restify.Response, next: Function) {
+function getMissionRaw(req: restify.Request, res: restify.Response, next: Function) {
     var
         digest, mission;
 
@@ -173,7 +197,7 @@ export function init(callback: Function) : void {
     server.head('/hello/:name', respondHelllo);
 
     server.post('/register', exceptionLoggingDecorator(registerUrl));
-    server.get('/missions/', getMissions);
+    server.get('/missions', _.wrap(getMissions, wrap500));
     server.get('/mission/:digest', getMission);
     server.get('/mission/:digest/raw', getMissionRaw);
     server.get('/mission/:digest/description.ext', getMissionFileHandler('description.ext'));
