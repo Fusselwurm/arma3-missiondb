@@ -5,8 +5,22 @@ var
     missionUrl = endpoint + '/mission/' + missionDigest;
 
 frisby.
+    create('get mission data of local mission').
+    get(missionUrl).
+    expectStatus(200).
+    expectJSON({
+        version: 12,
+        mission: {
+            Intel: {
+                briefingName: 'Drug bust'
+            }
+        }
+    }).
+    toss();
+
+
+frisby.
     create('get mission.sqm of local mission').
-    expectMaxResponseTime(1000).
     get(missionUrl + '/mission.sqm').
     expectStatus(200).
     expectBodyContains('class Mission').

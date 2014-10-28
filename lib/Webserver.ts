@@ -128,7 +128,21 @@ function getMissionRaw(req: restify.Request, res: restify.Response, next: Functi
     return next();
 }
 
-function getMission() {}
+function getMission(req: restify.Request, res: restify.Response, next: Function) {
+    var result,
+        mission = MissionRepository.getMission(req.params.digest);
+
+    if (!mission) {
+        res.send(404);
+        return next();
+    }
+
+    mission.getFile('mission.sqm');
+
+    // TODO arma config parser goes here...
+
+    res.send(200, result);
+}
 
 function getMissionFileHandler(filename) {
     return function (req: restify.Request, res: restify.Response, next: Function) {
@@ -198,7 +212,7 @@ export function init(callback: Function) : void {
 
     server.post('/register', exceptionLoggingDecorator(registerUrl));
     server.get('/missions', _.wrap(getMissions, wrap500));
-    server.get('/mission/:digest', getMission);
+    server.get('/mission/:digest', _.wrap(getMission, wrap500));
     server.get('/mission/:digest/raw', getMissionRaw);
     server.get('/mission/:digest/description.ext', getMissionFileHandler('description.ext'));
     server.get('/mission/:digest/mission.sqm', getMissionFileHandler('mission.sqm'));
