@@ -81,7 +81,7 @@ function getMissions(req, res, next) {
             originalUrl: mission.getUrl(),
             url: baseUrl + '/mission/' + mission.getContentDigest(),
             contentDigest: mission.getContentDigest(),
-            content: MissionConverter.convert(mission.getFile('mission.sqm'), mission.getFile('description.ext'))
+            content: mission.getMeta()
         };
     });
 

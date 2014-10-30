@@ -6,6 +6,7 @@ import bunyan = require('bunyan');
 import fs = require('fs');
 import async = require('async');
 import _ = require('underscore');
+import MissionConverter = require('./MissionConverter');
 
 import MissionFetcher = require('./MissionFetcher');
 import Pbo = require('./Pbo');
@@ -49,7 +50,9 @@ function readPboFiles(mission: Mission, dirname) {
             errorUrls.push(mission.getUrl());
         }
 
-        logger.info('completed mission extration. nice');
+        logger.info('completed mission file extraction. getting meta data...');
+        mission.setMeta(MissionConverter.convert(mission.getFile('mission.sqm'), mission.getFile('description.ext')));
+        logger.info('completed mission meta data extraction. nice :)');
         mission.status = MissionStatus.Known;
     });
 }
@@ -128,9 +131,9 @@ export class Mission {
     private content: Buffer;
     private contentDigest: string;
     private files: Object = {};
+    private meta;
 
     status: MissionStatus = MissionStatus.Unknown;
-
     setUrl(url) {
         this.url = url;
         this.urlDigest = getSha1(url);
@@ -156,6 +159,12 @@ export class Mission {
     }
     getFile(filename: string): string {
         return this.files[filename] || '';
+    }
+    setMeta(meta) {
+        this.meta = meta;
+    }
+    getMeta() {
+        return this.meta
     }
 }
 
