@@ -9,6 +9,7 @@ import Config = require('./Config');
 import MissionRepository = require('./MissionRepository');
 import Pbo = require('./Pbo');
 import ResourceFetcher = require('./ResourceFetcher');
+import MissionConverter = require('./MissionConverter');
 
 var
     baseUrl = Config.get('baseUrl'),
@@ -79,7 +80,8 @@ function getMissions(req, res, next) {
         return {
             originalUrl: mission.getUrl(),
             url: baseUrl + '/mission/' + mission.getContentDigest(),
-            contentDigest: mission.getContentDigest()
+            contentDigest: mission.getContentDigest(),
+            content: MissionConverter.convert(mission.getFile('mission.sqm'), mission.getFile('description.ext'))
         };
     });
 
