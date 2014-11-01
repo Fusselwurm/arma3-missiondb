@@ -131,19 +131,19 @@ function getMissionRaw(req: restify.Request, res: restify.Response, next: Functi
 }
 
 function getMission(req: restify.Request, res: restify.Response, next: Function) {
-    var result,
-        mission = MissionRepository.getMission(req.params.digest);
+    var mission = MissionRepository.getMission(req.params.digest);
 
     if (!mission) {
         res.send(404);
         return next();
     }
+    if (!mission.getMeta()) {
+        res.send(404);
+        return next();
+    }
 
-    mission.getFile('mission.sqm');
-
-    // TODO arma config parser goes here...
-
-    res.send(200, result);
+    res.send(200, mission.getMeta());
+    next();
 }
 
 function getMissionFileHandler(filename) {

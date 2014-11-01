@@ -21,7 +21,7 @@ function collectionsToArrays(parsedClass) {
 
 function getMissionSqm(missionSqm: string) {
     var
-        result = {};
+        result: any = {};
     try {
         logger.info(parse);
         result = parse(missionSqm);
@@ -37,6 +37,7 @@ function getMissionSqm(missionSqm: string) {
 export class MissionView {
     version: number;
     groups: Array<Mission.Group>;
+    addOns: Array<string>;
 }
 
 export function convert(missionSqm: string, descriptionExt: string): MissionView {
@@ -44,8 +45,13 @@ export function convert(missionSqm: string, descriptionExt: string): MissionView
         result = new MissionView(),
         missionSqmParsed = getMissionSqm(missionSqm);
 
+    result.version = missionSqmParsed.version;
     result.groups = getGroups(missionSqmParsed.Mission);
-    result.addOns = missionSqmParsed.Mission.addOns;
+    try {
+        result.addOns = missionSqmParsed.Mission.addOns;
+    } catch (e) {
+        logger.error(e);
+    }
     return result;
 }
 

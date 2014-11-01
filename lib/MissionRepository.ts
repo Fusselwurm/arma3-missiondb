@@ -23,7 +23,7 @@ function readPboFiles(mission: Mission, dirname) {
 
     logger.debug('reading extracted files...');
     async.parallel([
-        function (callback) {
+        function (callback: AsyncSingleResultCallback<Buffer>) {
             fs.readFile(dirname + '/description.ext', function (err, contents) {
                 if (err) {
                     logger.error('couldnt read description.ext :( ' + err);
@@ -33,7 +33,7 @@ function readPboFiles(mission: Mission, dirname) {
                 callback(null, contents);
             });
         },
-        function (callback) {
+        function (callback: AsyncSingleResultCallback<Buffer>) {
             fs.readFile(dirname + '/mission.sqm', function (err, contents) {
                 if (err) {
                     logger.error('couldnt read mission.sqm :( ' + err);
@@ -44,7 +44,7 @@ function readPboFiles(mission: Mission, dirname) {
             });
         },
     ], function (err, results: Array<Buffer>) {
-        if (results.filter(function (n: Buffer) { return !!n; }).length === 0) {
+        if (results.filter(function (n: Buffer): boolean { return !!n; }).length === 0) {
             logger.error('no data extracted. removing mission url: %s, content: %s', mission.getUrlDigest(), mission.getContentDigest());
             removeMission(mission);
             errorUrls.push(mission.getUrl());
