@@ -29,6 +29,7 @@ function validUrl(urlString: string) {
 
 function wrap500(wrapped: restify.RequestHandler, req: restify.Request, res: restify.Response, next: Function) {
     try {
+        res.setHeader('Access-Control-Allow-Origin', '*');
         wrapped.apply(this, _.toArray(arguments).slice(1));
     } catch (e) {
         logger.error(e);
