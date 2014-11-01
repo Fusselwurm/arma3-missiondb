@@ -53,6 +53,7 @@ export function convert(missionSqm: string, descriptionExt: string): MissionView
 
     result.version = missionSqmParsed.version;
     result.groups = getGroups(missionSqmParsed.Mission);
+    result.players = getPlayers(result.groups);
     result.author = descriptionExtParsed.author;
     result.title = descriptionExtParsed.onLoadMission;
     result.description = descriptionExtParsed.onLoadText;
@@ -66,13 +67,23 @@ export function convert(missionSqm: string, descriptionExt: string): MissionView
     return result;
 }
 
+function getPlayers(groups) {
+    var result = {};
+    groups.forEach(function (group) {
+        result[group.side] = result[group.side] || 0;
+        result[group.side] += group.players.length;
+    });
+    return result;
+}
+
 function getGroups(mission): Array<Mission.Group> {
     try {
         return mission.Groups.map(function (group) {
             var result = new Mission.Group();
             result.players = group.Vehicles.map(function (vehicle) {
                 return {
-                    className: vehicle.vehicle
+                    className: vehicle.vehicle,
+                    skill: vehicle.skill
                 };
             });
             result.side = group.side;
