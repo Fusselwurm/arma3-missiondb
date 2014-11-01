@@ -1,6 +1,6 @@
 /// <reference path="../typings/tsd.d.ts" />
 
-import parse = require('./../vendor/arma-class-to-json.js');
+import parse = require('arma-class-parser');
 import bunyan = require('bunyan');
 import Mission = require('./Mission');
 import _ = require('underscore');
