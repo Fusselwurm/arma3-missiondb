@@ -19,7 +19,7 @@ function collectionsToArrays(parsedClass) {
     return parsedClass;
 }
 
-function getMissionSqm(missionSqm: string) {
+function getParsedFile(missionSqm: string) {
     var
         result: any = {};
     try {
@@ -38,15 +38,26 @@ export class MissionView {
     version: number;
     groups: Array<Mission.Group>;
     addOns: Array<string>;
+    author: string;
+    title: string;
+    description: string;
+    respawn: number;
+    respawnDelay: number;
 }
 
 export function convert(missionSqm: string, descriptionExt: string): MissionView {
     var
         result = new MissionView(),
-        missionSqmParsed = getMissionSqm(missionSqm);
+        missionSqmParsed = getParsedFile(missionSqm),
+        descriptionExtParsed = getParsedFile(descriptionExt);
 
     result.version = missionSqmParsed.version;
     result.groups = getGroups(missionSqmParsed.Mission);
+    result.author = descriptionExtParsed.author;
+    result.title = descriptionExtParsed.onLoadMission;
+    result.description = descriptionExtParsed.onLoadText;
+    result.respawn = descriptionExtParsed.respawn;
+    result.respawnDelay = descriptionExtParsed.respawnDelay;
     try {
         result.addOns = missionSqmParsed.Mission.addOns;
     } catch (e) {
