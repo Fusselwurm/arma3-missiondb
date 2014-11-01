@@ -20,13 +20,15 @@ var
 logger.level(bunyan.DEBUG);
 
 function readPboFiles(mission: Mission, dirname) {
-
-    logger.debug('reading extracted files...');
+    var missionLogger = bunyan.createLogger({
+        name: 'missionRepository/' + mission.getContentDigest()
+    });
+    missionLogger.debug('reading extracted files...');
     async.parallel([
         function (callback: AsyncSingleResultCallback<Buffer>) {
             fs.readFile(dirname + '/description.ext', function (err, contents) {
                 if (err) {
-                    logger.error('couldnt read description.ext :( ' + err);
+                    missionLogger.error('couldnt read description.ext :( ' + err);
                 } else {
                     mission.setFile('description.ext', contents.toString('utf-8'));
                 }
@@ -36,7 +38,7 @@ function readPboFiles(mission: Mission, dirname) {
         function (callback: AsyncSingleResultCallback<Buffer>) {
             fs.readFile(dirname + '/mission.sqm', function (err, contents) {
                 if (err) {
-                    logger.error('couldnt read mission.sqm :( ' + err);
+                    missionLogger.error('couldnt read mission.sqm :( ' + err);
                 } else {
                     mission.setFile('mission.sqm', contents.toString('utf-8'));
                 }
@@ -45,14 +47,14 @@ function readPboFiles(mission: Mission, dirname) {
         },
     ], function (err, results: Array<Buffer>) {
         if (results.filter(function (n: Buffer): boolean { return !!n; }).length === 0) {
-            logger.error('no data extracted. removing mission url: %s, content: %s', mission.getUrlDigest(), mission.getContentDigest());
+            missionLogger.error('no data extracted. removing mission url: %s, content: %s', mission.getUrlDigest(), mission.getContentDigest());
             removeMission(mission);
             errorUrls.push(mission.getUrl());
         }
 
-        logger.info('completed mission file extraction. getting meta data...');
+        missionLogger.info('completed mission file extraction. getting meta data...');
         mission.setMeta(MissionConverter.convert(mission.getFile('mission.sqm'), mission.getFile('description.ext')));
-        logger.info('completed mission meta data extraction. nice :)');
+        missionLogger.info('completed mission meta data extraction. nice :)');
         mission.status = MissionStatus.Known;
     });
 }

@@ -23,13 +23,13 @@ function getParsedFile(missionSqm: string) {
     var
         result: any = {};
     try {
-        logger.info(parse);
         result = parse(missionSqm);
-        logger.info(result);
+        logger.debug(result);
         result = collectionsToArrays(result);
-        logger.info(result);
+        logger.debug(result);
     } catch (e) {
         logger.error(e);
+        logger.info(missionSqm);
     }
     return result;
 }
