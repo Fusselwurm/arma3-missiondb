@@ -18,6 +18,6 @@
     "jasmine-node": "~1.14.5"
   },
   "scripts": {
-    "postinstall": "./node_modules/tsd/build/cli.js reinstall"
+    "postinstall": "./node_modules/tsd/build/cli.js reinstall --save -o"
   }
 }
