@@ -1,5 +1,4 @@
 require('typescript-require');
-/// <reference path="./typings/tsd.d.ts" />
 
 import async = require('async');
 import bunyan = require('bunyan');
